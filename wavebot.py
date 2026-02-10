@@ -561,14 +561,14 @@ def _load_scoreboard_state() -> dict:
     if not os.path.exists(SCOREBOARD_STATE_FILE):
         return {}
     try:
-    data = load_json(SCOREBOARD_STATE_FILE)
+        data = load_json(SCOREBOARD_STATE_FILE)
         return data if isinstance(data, dict) else {}
     except Exception:
         return {}
 
 def _save_scoreboard_state(data: dict):
     try:
-    save_json(SCOREBOARD_STATE_FILE, data)
+        save_json(SCOREBOARD_STATE_FILE, data)
     except Exception:
         pass
 
@@ -612,14 +612,14 @@ def _load_dashboard_state() -> dict:
     if not os.path.exists(DASHBOARD_STATE_PATH):
         return {}
     try:
-    data = load_json(DASHBOARD_STATE_PATH)
+        data = load_json(DASHBOARD_STATE_PATH)
         return data if isinstance(data, dict) else {}
     except Exception:
         return {}
 
 def _save_dashboard_state(data: dict):
     try:
-    save_json(DASHBOARD_STATE_PATH, data)
+        save_json(DASHBOARD_STATE_PATH, data)
     except Exception:
         pass
 
