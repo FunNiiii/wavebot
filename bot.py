@@ -1,3 +1,5 @@
+import redis
+import redis
 import os
 import json
 import random
@@ -12,6 +14,28 @@ from typing import Optional, Dict, List, Set, Tuple, Any
 from collections import deque
 
 import discord
+
+# =========================================================
+# Redis 설정 (Railway 대응)
+# =========================================================
+REDIS_URL = os.getenv('REDIS_URL')
+if REDIS_URL:
+    db = redis.from_url(REDIS_URL, decode_responses=True)
+    print('Connected to Redis')
+else:
+    db = None
+    print('Redis URL not found. Using local file system')
+
+# =========================================================
+# Redis 설정 (Railway 대응)
+# =========================================================
+REDIS_URL = os.getenv("REDIS_URL")
+if REDIS_URL:
+    db = redis.from_url(REDIS_URL, decode_responses=True)
+    print("Connected to Redis")
+else:
+    db = None
+    print("Redis URL not found. Using local file system")
 from discord import app_commands
 from discord.ext import commands
 
@@ -101,14 +125,18 @@ def get_member_tier(x):
 # =========================================================
 
 
-def load_json(path: str) -> dict:
-    if not os.path.exists(path):
+def load_json(path: str) -> Any:
+    key = os.path.basename(path)
+    if db:
+        data = db.get(key)
+        if data:
+            try: return json.loads(data)
+            except: return {}
         return {}
+    if not os.path.exists(path): return {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+        with open(path, 'r', encoding='utf-8') as f: return json.load(f)
+    except: return {}
 
 def load_json_lenient(path: str) -> dict:
     """JSON 로드(복구용 강화 버전).
@@ -158,22 +186,19 @@ def load_json_lenient(path: str) -> dict:
             out[k] = v
     return out
 
-def save_json(path: str, data: dict):
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+def save_json(path: str, data: Any):
+    key = os.path.basename(path)
+    if db:
+        db.set(key, json.dumps(data, ensure_ascii=False))
+    else:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
 def _load_json(path):
-    if not os.path.exists(path):
-        return {}
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+    return load_json(path)
 
 def _save_json(path, data):
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    save_json(path, data)
 
 # ---------- queue mode state ----------
 QUEUE_MODE = {}  # guild_id -> "normal" | "event"
@@ -534,16 +559,14 @@ def _load_scoreboard_state() -> dict:
     if not os.path.exists(SCOREBOARD_STATE_FILE):
         return {}
     try:
-        with open(SCOREBOARD_STATE_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
+    data = load_json(SCOREBOARD_STATE_FILE)
         return data if isinstance(data, dict) else {}
     except Exception:
         return {}
 
 def _save_scoreboard_state(data: dict):
     try:
-        with open(SCOREBOARD_STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+    save_json(SCOREBOARD_STATE_FILE, data)
     except Exception:
         pass
 
@@ -587,16 +610,14 @@ def _load_dashboard_state() -> dict:
     if not os.path.exists(DASHBOARD_STATE_PATH):
         return {}
     try:
-        with open(DASHBOARD_STATE_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
+    data = load_json(DASHBOARD_STATE_PATH)
         return data if isinstance(data, dict) else {}
     except Exception:
         return {}
 
 def _save_dashboard_state(data: dict):
     try:
-        with open(DASHBOARD_STATE_PATH, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+    save_json(DASHBOARD_STATE_PATH, data)
     except Exception:
         pass
 
@@ -701,11 +722,9 @@ def _load_exemption_pass_logs() -> list:
     """exemption_pass_logs.json을 list 형태로 관리. 없으면 자동 생성."""
     try:
         if not os.path.exists(EXEMPTION_PASS_LOGS_FILE):
-            with open(EXEMPTION_PASS_LOGS_FILE, "w", encoding="utf-8") as f:
-                json.dump([], f, ensure_ascii=False, indent=2)
+            save_json(EXEMPTION_PASS_LOGS_FILE, [])
             return []
-        with open(EXEMPTION_PASS_LOGS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        data = load_json(EXEMPTION_PASS_LOGS_FILE)
         return data if isinstance(data, list) else []
     except Exception:
         return []
@@ -713,8 +732,7 @@ def _load_exemption_pass_logs() -> list:
 
 def _save_exemption_pass_logs(items: list) -> None:
     try:
-        with open(EXEMPTION_PASS_LOGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(items, f, ensure_ascii=False, indent=2)
+        save_json(EXEMPTION_PASS_LOGS_FILE, items)
     except Exception:
         pass
 
