@@ -16,7 +16,7 @@ from collections import deque
 import discord
 
 # =========================================================
-# Redis 설정 (Railway 대응)
+# Redis 설정 및 자동 마이그레이션 (Railway 대응)
 # =========================================================
 REDIS_URL = os.getenv('REDIS_URL')
 if REDIS_URL:
@@ -129,14 +129,17 @@ def load_json(path: str) -> Any:
     key = os.path.basename(path)
     if db:
         data = db.get(key)
-        if data:
+        if data: 
             try: return json.loads(data)
-            except: return {}
-        return {}
-    if not os.path.exists(path): return {}
-    try:
-        with open(path, 'r', encoding='utf-8') as f: return json.load(f)
-    except: return {}
+            except: pass
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                content = json.load(f)
+                if db: db.set(key, json.dumps(content, ensure_ascii=False))
+                return content
+        except: return {}
+    return {}
 
 def load_json_lenient(path: str) -> dict:
     """JSON 로드(복구용 강화 버전).
@@ -188,8 +191,7 @@ def load_json_lenient(path: str) -> dict:
 
 def save_json(path: str, data: Any):
     key = os.path.basename(path)
-    if db:
-        db.set(key, json.dumps(data, ensure_ascii=False))
+    if db: db.set(key, json.dumps(data, ensure_ascii=False))
     else:
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
